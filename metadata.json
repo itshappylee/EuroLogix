@@ -1,0 +1,7 @@
+{
+  "name": "EuroLogix Calendar",
+  "description": "A high-performance logistics management calendar tailored for European supply chains, featuring AI-driven route optimization, port schedule tracking, and regional regulation alerts.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
