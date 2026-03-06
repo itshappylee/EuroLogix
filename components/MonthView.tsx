@@ -6,11 +6,11 @@ import { LOGISTICS_TYPES } from '../constants';
 interface MonthViewProps {
   currentDate: Date;
   events: LogisticsEvent[];
-  activeFilters: LogisticsType[];
+  activeCountries: string[];
   onEventClick: (event: LogisticsEvent) => void;
 }
 
-const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, activeFilters, onEventClick }) => {
+const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, activeCountries, onEventClick }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -26,12 +26,20 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, activeFilter
   const getDayEvents = (day: number) => {
     return events.filter(e => {
       const eDate = new Date(e.start);
-      return eDate.getDate() === day && eDate.getMonth() === month && eDate.getFullYear() === year && activeFilters.includes(e.type);
+      return eDate.getDate() === day && 
+             eDate.getMonth() === month && 
+             eDate.getFullYear() === year && 
+             activeCountries.includes(e.countryCode);
     });
   };
 
-  const getEventColor = (type: LogisticsType) => {
-    return LOGISTICS_TYPES.find(t => t.value === type)?.color || 'bg-slate-400';
+  const getEventColor = (event: LogisticsEvent) => {
+    switch (event.category) {
+      case 'Traffic Ban': return 'bg-blue-500';
+      case 'Holiday': return 'bg-rose-500';
+      case 'Strike': return 'bg-amber-500';
+      default: return 'bg-slate-400';
+    }
   };
 
   return (
@@ -48,7 +56,7 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, activeFilter
           <div key={idx} className={`min-h-[120px] border-r border-b border-slate-100 p-1 group hover:bg-slate-50 transition-colors ${day === null ? 'bg-slate-50/50' : ''}`}>
             {day && (
               <>
-                <div className="flex justify-center mb-1">
+                <div className="flex flex-col items-center mb-1">
                   <span className={`text-xs font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors
                     ${day === new Date().getDate() && month === new Date().getMonth() ? 'bg-blue-600 text-white' : 'text-slate-700 group-hover:bg-slate-200'}
                   `}>
@@ -60,9 +68,8 @@ const MonthView: React.FC<MonthViewProps> = ({ currentDate, events, activeFilter
                     <button
                       key={event.id}
                       onClick={() => onEventClick(event)}
-                      className={`w-full text-left px-2 py-0.5 text-[10px] leading-tight text-white rounded truncate transition-all hover:brightness-110 active:scale-95 ${getEventColor(event.type)}`}
+                      className={`w-full text-left px-2 py-0.5 text-[10px] leading-tight text-white rounded truncate transition-all hover:brightness-110 active:scale-95 ${getEventColor(event)}`}
                     >
-                      <span className="font-bold mr-1">{event.type === 'Maritime' ? '🚢' : event.type === 'Road' ? '🚛' : event.type === 'Rail' ? '🚆' : '✈️'}</span>
                       {event.title}
                     </button>
                   ))}

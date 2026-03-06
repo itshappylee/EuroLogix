@@ -11,7 +11,7 @@ export const getLogisticsIntelligence = async (prompt: string, events: any[]) =>
       The current logistics schedule includes: ${JSON.stringify(events)}.
       User Request: ${prompt}`,
       config: {
-        systemInstruction: "Provide concise, professional logistics advice. Focus on European borders, transit times, port congestion, and regional regulations like driving bans.",
+        systemInstruction: "Provide concise, professional logistics advice. Focus ONLY on European logistics strikes (Strike), truck traffic bans (Traffic Ban), and public holidays (Holiday). Ignore maritime, air, or standard port operations unless they are directly affected by a strike.",
         temperature: 0.7,
       },
     });
@@ -22,28 +22,69 @@ export const getLogisticsIntelligence = async (prompt: string, events: any[]) =>
   }
 };
 
-export const parseLogisticsQuery = async (query: string) => {
+export const getPortCongestion = async () => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Parse this natural language request into a logistics event object. Query: "${query}"`,
+      contents: "Check the current port congestion status for Port of Koper (Slovenia) and Port of Rijeka (Croatia). Provide a status for each: 'Congested', 'Moderate', or 'Fluid'. Return as a JSON object with port names as keys.",
       config: {
+        tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING },
-            type: { type: Type.STRING, enum: ['Maritime', 'Road', 'Rail', 'Air', 'Holiday', 'Risk'] },
-            start: { type: Type.STRING, description: 'ISO format date' },
-            end: { type: Type.STRING, description: 'ISO format date' },
-            location: { type: Type.STRING },
+            Koper: { type: Type.STRING, enum: ['Congested', 'Moderate', 'Fluid'] },
+            Rijeka: { type: Type.STRING, enum: ['Congested', 'Moderate', 'Fluid'] }
           },
-          required: ['title', 'type', 'start', 'end'],
-        },
+          required: ['Koper', 'Rijeka']
+        }
       },
     });
-    return JSON.parse(response.text || '{}');
+    
+    const text = response.text;
+    if (!text) return { Koper: 'Fluid', Rijeka: 'Fluid' };
+    return JSON.parse(text);
   } catch (error) {
-    return null;
+    console.error("Error fetching port congestion:", error);
+    return { Koper: 'Fluid', Rijeka: 'Fluid' };
+  }
+};
+
+export const getRealTimeLogisticsEvents = async () => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: "Find major logistics strikes (Strike), truck traffic bans (Traffic Ban), and ALL public holidays (Holiday) for European countries (SK, HU, PL, CZ, IT, DE, AT, UA, RO, SI) for the year 2026. Pay special attention to Easter holidays in April 2026 (Good Friday, Easter Monday) which vary by country. Return them as a JSON array of events.",
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              type: { type: Type.STRING, enum: ['Risk', 'Holiday'] },
+              start: { type: Type.STRING, description: 'ISO date string' },
+              end: { type: Type.STRING, description: 'ISO date string' },
+              location: { type: Type.STRING },
+              countryCode: { type: Type.STRING, description: 'ISO 2-letter country code (e.g., SK, DE, PL)' },
+              description: { type: Type.STRING },
+              status: { type: Type.STRING, enum: ['planned', 'delayed', 'on-time'] },
+              category: { type: Type.STRING, enum: ['Strike', 'Traffic Ban', 'Holiday'] },
+              sourceUrl: { type: Type.STRING, description: 'URL to the source of information' }
+            },
+            required: ['title', 'type', 'start', 'end', 'location', 'countryCode', 'category', 'sourceUrl']
+          }
+        }
+      },
+    });
+    
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Error fetching real-time logistics:", error);
+    return [];
   }
 };

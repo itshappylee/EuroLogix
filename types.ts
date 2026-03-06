@@ -8,10 +8,14 @@ export interface LogisticsEvent {
   end: Date;
   type: LogisticsType;
   location: string;
+  countryCode: string;
   description?: string;
   status: 'on-time' | 'delayed' | 'planned';
   origin?: string;
   destination?: string;
+  category?: 'Strike' | 'Traffic Ban' | 'Holiday';
+  sourceUrl?: string;
+  note?: string;
 }
 
 export type CalendarViewMode = 'Day' | 'Week' | 'Month' | 'Year' | 'Schedule';
