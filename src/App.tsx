@@ -3,6 +3,7 @@ import type { Lang } from './lib/types'
 import { Header, type Screen } from './components/Header'
 import { CalendarScreen } from './components/CalendarScreen'
 import { RouteScreen } from './components/RouteScreen'
+import { InfoScreen } from './components/InfoScreen'
 import { AdminScreenContainer } from './components/AdminScreenContainer'
 import { LoginPanel } from './components/LoginPanel'
 import { loadPrefs, savePrefs } from './lib/prefs'
@@ -90,10 +91,10 @@ export default function App() {
           onToast={showToast}
           initial={{ date: url0.date, country: url0.country, view: url0.view }}
           reporter={user?.email ?? null}
-          onSignIn={() => setLoginOpen(true)}
         />
       )}
       {screen === 'route' && <RouteScreen lang={lang} onToast={showToast} />}
+      {screen === 'info' && <InfoScreen lang={lang} />}
       {screen === 'admin' && (
         <AdminScreenContainer
           lang={lang}

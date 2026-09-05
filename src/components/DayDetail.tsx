@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { EventType, Lang, RiskEvent } from '../lib/types'
 import { EVENT_TYPES, TYPE_META, severityBand, severityLabel } from '../lib/eventMeta'
-import { makeT, timeAgo } from '../lib/i18n'
+import { makeT, timeAgo, pickText } from '../lib/i18n'
 import { isActiveRisk, runLength } from '../lib/changes'
 
 interface Props {
@@ -117,7 +117,7 @@ export function DayDetail({ lang, date, events, onExclude }: Props) {
                         )}
                       </div>
 
-                      <p className="detail-name">{e.event_name}</p>
+                      <p className="detail-name">{pickText(lang, e.event_name_en, e.event_name)}</p>
                       <p className="detail-meta">
                         {period} · {time} · {severityLabel(e.severity, lang)}
                       </p>
@@ -139,8 +139,10 @@ export function DayDetail({ lang, date, events, onExclude }: Props) {
                           </span>
                         </div>
                       )}
-                      <p className="detail-summary">{e.summary}</p>
-                      {e.severity_reason && <p className="detail-reason">{e.severity_reason}</p>}
+                      <p className="detail-summary">{pickText(lang, e.summary_en, e.summary)}</p>
+                      {e.severity_reason && (
+                        <p className="detail-reason">{pickText(lang, e.severity_reason_en, e.severity_reason)}</p>
+                      )}
 
                       <div className="detail-source">
                         <span>{t('source')}:</span>
@@ -177,7 +179,7 @@ export function DayDetail({ lang, date, events, onExclude }: Props) {
                     <strong className="dt-country">{e.country}</strong>
                     <span className="dt-region">{e.region ? e.region : t('nationwide')}</span>
                   </div>
-                  <p className="detail-name">{e.event_name}</p>
+                  <p className="detail-name">{pickText(lang, e.event_name_en, e.event_name)}</p>
                   <div className="detail-source">
                     <span>{timeAgo(e.upd_dtm, lang)}</span>
                   </div>

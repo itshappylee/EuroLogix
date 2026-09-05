@@ -5,6 +5,8 @@ import { makeT } from '../lib/i18n'
 interface Props {
   lang: Lang
   countries: string[]
+  /** 국가별 이번 달 이벤트 건수. 0건인 나라도 고를 수 있게 두되, 데이터 유무는 보이게 한다 */
+  counts?: Map<string, number>
   value: string | null
   onChange: (c: string | null) => void
 }
@@ -16,8 +18,11 @@ interface Props {
  * A~Z 인덱스로 한 번 묶고, 그 안에서 고른다. 텍스트 검색도 함께 둔다.
  *
  * 선택한 국가는 "담당 국가"로 저장돼 다음 방문에 그대로 복원된다.
+ *
+ * 2026-09-02부터 목록은 **42개국 전체**다. 그전에는 '그 달에 이벤트가 있는 나라'만 담아
+ * 19개국만 보였고, 담당 국가가 조용히 사라지는 문제가 있었다. 건수 배지로 데이터 유무를 알린다.
  */
-export function CountryPicker({ lang, countries, value, onChange }: Props) {
+export function CountryPicker({ lang, countries, counts, value, onChange }: Props) {
   const t = makeT(lang)
   const [open, setOpen] = useState(false)
   const [letter, setLetter] = useState<string | null>(null)
@@ -104,18 +109,22 @@ export function CountryPicker({ lang, countries, value, onChange }: Props) {
               <span className="cp-n">{countries.length}</span>
             </button>
 
-            {shown.map((c) => (
-              <button
-                key={c}
-                className={`cp-item${value === c ? ' on' : ''}`}
-                onClick={() => {
-                  onChange(c)
-                  setOpen(false)
-                }}
-              >
-                {c}
-              </button>
-            ))}
+            {shown.map((c) => {
+              const n = counts?.get(c) ?? 0
+              return (
+                <button
+                  key={c}
+                  className={`cp-item${value === c ? ' on' : ''}${n === 0 ? ' quiet' : ''}`}
+                  onClick={() => {
+                    onChange(c)
+                    setOpen(false)
+                  }}
+                >
+                  {c}
+                  {counts && <span className="cp-n">{n}</span>}
+                </button>
+              )
+            })}
 
             {shown.length === 0 && <p className="cp-empty">{t('noMatch')}</p>}
           </div>

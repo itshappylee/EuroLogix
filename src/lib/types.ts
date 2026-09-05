@@ -33,6 +33,10 @@ export interface RiskEvent {
   /** 0~5. 0은 "캘린더 미표시" 예약값 (business-rules Driving Ban Step 0) */
   severity: number
   severity_reason: string
+  /** 영어 병렬 텍스트 — n8n이 규칙 기반으로 생성. null이면 프론트가 한국어로 폴백한다 (→ 2026-09-02 이중언어 작업) */
+  event_name_en?: string | null
+  summary_en?: string | null
+  severity_reason_en?: string | null
   status: RecordStatus
   source_url: string
   verified: Verified

@@ -1,83 +1,91 @@
 import { useState, type CSSProperties } from 'react'
-import type { Lang } from '../lib/types'
-import { makeT } from '../lib/i18n'
-import { TYPE_META, severityBand, severityLabel } from '../lib/eventMeta'
-import { MOCK_ANALYSIS, TRANSPORT_ICON, type TransportType } from '../lib/mockRoute'
+import type { Lang, RiskEvent } from '../lib/types'
+import { makeT, pickText, timeAgo } from '../lib/i18n'
+import { TYPE_META, TRANSPORT_ICON, severityBand, severityLabel, type TransportMode } from '../lib/eventMeta'
+import { LocationPicker, emptyLocation, type LocationValue } from './LocationPicker'
+import { fetchEvents } from '../lib/supabase'
+import { analyzeRoute, routeDateRange, type RouteAnalysisResult } from '../lib/routeAnalysis'
 import { toISODate } from '../lib/calendar'
-import { COUNTRY_POINTS } from '../lib/geo'
 
 interface Props {
   lang: Lang
   onToast: (msg: string) => void
 }
 
-const MODES: TransportType[] = ['truck', 'rail', 'air', 'sea']
-const COUNTRY_OPTIONS = [...new Set(COUNTRY_POINTS.map((p) => p.name))].sort()
-const CITY_BY_COUNTRY: Record<string, string[]> = {
-  Germany: ['Hamburg', 'Berlin', 'Frankfurt', 'Munich', 'Düsseldorf'],
-  France: ['Lyon', 'Paris', 'Marseille', 'Le Havre', 'Strasbourg'],
-  Belgium: ['Brussels', 'Antwerp', 'Ghent', 'Liège'],
-  Netherlands: ['Rotterdam', 'Amsterdam', 'Eindhoven', 'Utrecht'],
-  Italy: ['Milan', 'Rome', 'Naples', 'Turin'],
-  Spain: ['Madrid', 'Barcelona', 'Valencia', 'Seville'],
-  Poland: ['Warsaw', 'Gdańsk', 'Katowice', 'Wrocław'],
-  Czechia: ['Prague', 'Brno', 'Ostrava'],
-  Austria: ['Vienna', 'Graz', 'Linz'],
-  Slovakia: ['Bratislava', 'Košice'],
-  Hungary: ['Budapest', 'Debrecen'],
-  Romania: ['Bucharest', 'Cluj-Napoca', 'Constanța'],
-  Bulgaria: ['Sofia', 'Varna', 'Plovdiv'],
-  Greece: ['Athens', 'Thessaloniki', 'Piraeus'],
-  Denmark: ['Copenhagen', 'Aarhus'],
-  Sweden: ['Stockholm', 'Gothenburg', 'Malmö'],
-  Portugal: ['Lisbon', 'Porto'],
-  Ireland: ['Dublin', 'Cork'],
-  'United Kingdom': ['London', 'Manchester', 'Birmingham', 'Liverpool'],
-  'Bosnia and Herzegovina': ['Sarajevo', 'Mostar'],
-  'North Macedonia': ['Skopje', 'Bitola'],
-  'Czech Republic': ['Prague', 'Brno'],
-  Turkey: ['Istanbul', 'Ankara', 'Izmir'],
+const MODES: TransportMode[] = ['road', 'rail', 'air', 'sea']
+
+const MODE_KEY: Record<TransportMode, 'modeRoad' | 'modeRail' | 'modeAir' | 'modeSea'> = {
+  road: 'modeRoad',
+  rail: 'modeRail',
+  air: 'modeAir',
+  sea: 'modeSea',
 }
 
-type LocationPick = {
-  country: string
-  city: string
-  customCity: string
-}
+type Phase =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'done'; result: RouteAnalysisResult; sample: boolean }
 
-const makeLocationPick = (country: string, city: string): LocationPick => ({
-  country,
-  city,
-  customCity: '',
-})
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
 
 /**
- * 2b · Operator 전용 — 경로 분석.
+ * 2b · 경로 분석 — 실제 `events` 데이터로 계산한다 (2026-09-05, 목업 해제).
  *
- * ⚠️ **전부 목업이다.** 좌표·경로·대안 계산이 실제로 존재하지 않는다
- * (→ wiki/questions/Q-012-route-analysis-not-built.md).
- * 사용자 지시로 와이어프레임을 그대로 옮겼고, 오해를 막기 위해 목업 배너를 상시 노출한다.
+ * 계산 규칙은 `lib/routeAnalysis.ts`(= business-rules §6)에 있고, 이 파일은 화면만 그린다.
+ *
+ * ⚠️ **여전히 없는 것 두 가지** (→ Q-012-route-analysis-not-built):
+ * ⑴ 진짜 노선 지도 — 좌표가 없어 "이 선을 따라가면 무엇에 걸리나"를 못 푼다.
+ *    대신 지나는 **국가를 순서대로 늘어놓은 구간 바**를 그린다. 지도인 척하지 않는다.
+ * ⑵ 대안 경로·예상 지연시간 — 계산 근거가 없다. 지어내지 않고 "준비중"으로 비워 둔다.
  */
 export function RouteScreen({ lang, onToast }: Props) {
   const t = makeT(lang)
-  const a = MOCK_ANALYSIS
 
-  const [mode, setMode] = useState<TransportType>('truck')
-  const [origin, setOrigin] = useState<LocationPick>(makeLocationPick('Germany', 'Hamburg'))
-  const [dest, setDest] = useState<LocationPick>(makeLocationPick('France', 'Lyon'))
-  const [waypoints, setWaypoints] = useState<LocationPick[]>([])
+  const [mode, setMode] = useState<TransportMode>('road')
+  const [origin, setOrigin] = useState<LocationValue>(emptyLocation('Germany', 'Hamburg'))
+  const [dest, setDest] = useState<LocationValue>(emptyLocation('France', 'Lyon'))
+  const [waypoints, setWaypoints] = useState<LocationValue[]>([])
   const [depart, setDepart] = useState(toISODate(new Date()))
   const [days, setDays] = useState(3)
-  const [ran, setRan] = useState(true)
+  const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
 
-  const band = severityBand(a.gradeSeverity)
+  const picks = [origin, ...waypoints, dest]
+  const canRun = Boolean(origin.country && dest.country)
+
+  async function run() {
+    if (!canRun) {
+      onToast(t('routeNeedInput'))
+      return
+    }
+    const range = routeDateRange(depart, days)
+    setPhase({ kind: 'loading' })
+    const load = await fetchEvents(range.from, range.to)
+    if (load.kind === 'error') {
+      setPhase({ kind: 'error', message: load.message })
+      return
+    }
+    setPhase({
+      kind: 'done',
+      result: analyzeRoute(load.events, picks, mode, range),
+      sample: load.kind === 'sample',
+    })
+  }
+
+  const result = phase.kind === 'done' ? phase.result : null
+  const band = severityBand(result?.grade ?? 0)
 
   return (
     <div className="route-screen">
       <div className="sec-bar">
         <h2 className="sec-bar-title">{t('navRoute')}</h2>
-        <span className="mock-chip">⚠️ MOCKUP</span>
-        <p className="sec-bar-note">{t('mockBanner')}</p>
+        <p className="sec-bar-note">{t('routeScopeNote')}</p>
       </div>
 
       <div className="route-main">
@@ -97,226 +105,44 @@ export function RouteScreen({ lang, onToast }: Props) {
                 <span className="mode-ico" aria-hidden="true">
                   {TRANSPORT_ICON[m]}
                 </span>
-                {t(`mode${m === 'truck' ? 'Road' : m === 'rail' ? 'Rail' : m === 'air' ? 'Air' : 'Sea'}`)}
+                {t(MODE_KEY[m])}
               </button>
             ))}
           </div>
 
           <label className="fld-label">{t('origin')}</label>
-          <div className="fld-2col">
-            <div>
-              <label className="fld-label" htmlFor="r-origin-country">
-                {t('fieldCountry')}
-              </label>
-              <select
-                id="r-origin-country"
-                className="fld"
-                value={origin.country}
-                onChange={(e) => {
-                  const nextCountry = e.target.value
-                  const cities = CITY_BY_COUNTRY[nextCountry] ?? []
-                  setOrigin({
-                    country: nextCountry,
-                    city: cities.includes(origin.city) ? origin.city : cities[0] ?? 'Other',
-                    customCity: nextCountry && cities.length === 0 ? origin.customCity : '',
-                  })
-                }}
-              >
-                <option value="">{t('selectPlaceholder')}</option>
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="fld-label" htmlFor="r-origin-city">
-                {t('fieldCity')}
-              </label>
-              <select
-                id="r-origin-city"
-                className="fld"
-                value={origin.city}
-                onChange={(e) => {
-                  const nextCity = e.target.value
-                  setOrigin({ ...origin, city: nextCity, customCity: nextCity === 'Other' ? origin.customCity : '' })
-                }}
-                disabled={!origin.country}
-              >
-                <option value="">{origin.country ? t('selectPlaceholder') : '—'}</option>
-                {[(CITY_BY_COUNTRY[origin.country] ?? []), ['Other']].flat().map((city) => (
-                  <option key={city} value={city}>
-                    {city === 'Other' ? 'Other' : city}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {origin.city === 'Other' && (
-            <div className="fld-wrap">
-              <label className="fld-label" htmlFor="r-origin-custom-city">
-                Other city
-              </label>
-              <input
-                id="r-origin-custom-city"
-                className="fld"
-                placeholder="Enter city"
-                value={origin.customCity}
-                onChange={(e) => setOrigin({ ...origin, customCity: e.target.value })}
-              />
-            </div>
-          )}
+          <LocationPicker lang={lang} value={origin} onChange={setOrigin} idPrefix="r-origin" />
 
-          {waypoints.map((w, i) => {
-            const cityOptions = [(CITY_BY_COUNTRY[w.country] ?? []), ['Other']].flat()
-            return (
-              <div key={i} className="wp-row">
-                <div className="wp-pick-group">
-                  <select
-                    className="fld"
-                    value={w.country}
-                    onChange={(e) => {
-                      const nextCountry = e.target.value
-                      const cities = CITY_BY_COUNTRY[nextCountry] ?? []
-                      setWaypoints(
-                        waypoints.map((x, j) =>
-                          j === i
-                            ? {
-                                country: nextCountry,
-                                city: cities.includes(x.city) ? x.city : cities[0] ?? 'Other',
-                                customCity: nextCountry && cities.length === 0 ? x.customCity : '',
-                              }
-                            : x,
-                        ),
-                      )
-                    }}
-                  >
-                    <option value="">{t('selectPlaceholder')}</option>
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="fld"
-                    value={w.city}
-                    onChange={(e) => {
-                      const nextCity = e.target.value
-                      setWaypoints(
-                        waypoints.map((x, j) =>
-                          j === i ? { ...x, city: nextCity, customCity: nextCity === 'Other' ? x.customCity : '' } : x,
-                        ),
-                      )
-                    }}
-                    disabled={!w.country}
-                  >
-                    <option value="">{w.country ? t('selectPlaceholder') : '—'}</option>
-                    {cityOptions.map((city) => (
-                      <option key={city} value={city}>
-                        {city === 'Other' ? 'Other' : city}
-                      </option>
-                    ))}
-                  </select>
-                  {w.city === 'Other' && (
-                    <input
-                      className="fld"
-                      placeholder="Other city"
-                      value={w.customCity}
-                      onChange={(e) =>
-                        setWaypoints(
-                          waypoints.map((x, j) =>
-                            j === i ? { ...x, customCity: e.target.value } : x,
-                          ),
-                        )
-                      }
-                    />
-                  )}
-                </div>
-                <button
-                  className="wp-del"
-                  aria-label="remove"
-                  onClick={() => setWaypoints(waypoints.filter((_, j) => j !== i))}
-                >
-                  ✕
-                </button>
+          {waypoints.map((w, i) => (
+            <div className="wp-row" key={`wp-${i}`}>
+              <div className="wp-pick-group">
+                <label className="fld-label">
+                  {t('waypoint')} {i + 1}
+                </label>
+                <LocationPicker
+                  lang={lang}
+                  value={w}
+                  onChange={(next) => setWaypoints(waypoints.map((old, j) => (i === j ? next : old)))}
+                  idPrefix={`r-wp${i}`}
+                />
               </div>
-            )
-          })}
+              <button
+                className="wp-del"
+                aria-label={t('removeWaypoint')}
+                title={t('removeWaypoint')}
+                onClick={() => setWaypoints(waypoints.filter((_, j) => j !== i))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
 
-          <button
-            className="wp-add"
-            onClick={() => setWaypoints([...waypoints, makeLocationPick('', '')])}
-          >
+          <button className="wp-add" onClick={() => setWaypoints([...waypoints, emptyLocation()])}>
             + {t('addWaypoint')}
           </button>
 
           <label className="fld-label">{t('destination')}</label>
-          <div className="fld-2col">
-            <div>
-              <label className="fld-label" htmlFor="r-dest-country">
-                {t('fieldCountry')}
-              </label>
-              <select
-                id="r-dest-country"
-                className="fld"
-                value={dest.country}
-                onChange={(e) => {
-                  const nextCountry = e.target.value
-                  const cities = CITY_BY_COUNTRY[nextCountry] ?? []
-                  setDest({
-                    country: nextCountry,
-                    city: cities.includes(dest.city) ? dest.city : cities[0] ?? 'Other',
-                    customCity: nextCountry && cities.length === 0 ? dest.customCity : '',
-                  })
-                }}
-              >
-                <option value="">{t('selectPlaceholder')}</option>
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="fld-label" htmlFor="r-dest-city">
-                {t('fieldCity')}
-              </label>
-              <select
-                id="r-dest-city"
-                className="fld"
-                value={dest.city}
-                onChange={(e) => {
-                  const nextCity = e.target.value
-                  setDest({ ...dest, city: nextCity, customCity: nextCity === 'Other' ? dest.customCity : '' })
-                }}
-                disabled={!dest.country}
-              >
-                <option value="">{dest.country ? t('selectPlaceholder') : '—'}</option>
-                {[(CITY_BY_COUNTRY[dest.country] ?? []), ['Other']].flat().map((city) => (
-                  <option key={city} value={city}>
-                    {city === 'Other' ? 'Other' : city}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {dest.city === 'Other' && (
-            <div className="fld-wrap">
-              <label className="fld-label" htmlFor="r-dest-custom-city">
-                Other city
-              </label>
-              <input
-                id="r-dest-custom-city"
-                className="fld"
-                placeholder="Enter city"
-                value={dest.customCity}
-                onChange={(e) => setDest({ ...dest, customCity: e.target.value })}
-              />
-            </div>
-          )}
+          <LocationPicker lang={lang} value={dest} onChange={setDest} idPrefix="r-dest" />
 
           <div className="fld-2col">
             <div>
@@ -350,15 +176,8 @@ export function RouteScreen({ lang, onToast }: Props) {
             </div>
           </div>
 
-
-          <button
-            className="btn primary run-btn"
-            onClick={() => {
-              setRan(true)
-              onToast(t('mockBanner'))
-            }}
-          >
-            {t('runAnalysis')} ▶
+          <button className="btn primary run-btn" onClick={run} disabled={phase.kind === 'loading'}>
+            {phase.kind === 'loading' ? t('routeLoading') : `${t('runAnalysis')} ▶`}
           </button>
         </section>
 
@@ -370,69 +189,85 @@ export function RouteScreen({ lang, onToast }: Props) {
                 {TRANSPORT_ICON[mode]}
               </span>
               <span className="rr-title">
-                {t(`mode${mode === 'truck' ? 'Road' : mode === 'rail' ? 'Rail' : mode === 'air' ? 'Air' : 'Sea'}`)}{' '}
-                {t('basedOn')}
+                {t(MODE_KEY[mode])} {t('basedOn')}
               </span>
-              <span className={`grade-badge sev-${band}`}>
-                {severityLabel(a.gradeSeverity, lang)} · {a.gradeSeverity}
-              </span>
+              {result && (
+                <span className={`grade-badge sev-${band}`}>
+                  {result.grade > 0
+                    ? `${severityLabel(result.grade, lang)} · ${result.grade}`
+                    : t('routeGradeNone')}
+                </span>
+              )}
             </div>
-            <span className="rr-meta">
-              {t('dataSources')} {a.sourceCount}
-              {t('places')} · {t('updatedAgo')} {a.updatedMinutesAgo}
-              {t('minutesAgoShort')}
-            </span>
+            {result && (
+              <span className="rr-meta">
+                {result.from} → {result.to} · {t('routeCountsHigh')} {result.counts.high} ·{' '}
+                {t('routeCountsMid')} {result.counts.mid} · {t('routeCountsLow')} {result.counts.low}
+              </span>
+            )}
           </header>
 
-          {!ran ? (
-            <div className="detail-empty">{t('runAnalysis')}</div>
-          ) : (
+          {phase.kind === 'idle' && <div className="detail-empty">{t('routeIdle')}</div>}
+          {phase.kind === 'loading' && <div className="detail-empty">{t('routeLoading')}</div>}
+          {phase.kind === 'error' && (
+            <div className="detail-empty">
+              {t('routeError')} — {phase.message}
+            </div>
+          )}
+
+          {result && (
             <>
-              {/* 스키마틱 경로도 — 실제 지도가 아니라 구간 개념도다 */}
-              <div className="routemap" aria-label={t('routeMap')}>
-                <svg viewBox="0 0 100 22" preserveAspectRatio="none" className="rm-svg">
-                  <line x1="2" y1="11" x2="98" y2="11" className="rm-base" />
-                  <line x1="34" y1="11" x2="66" y2="11" className="rm-high" />
-                  <line x1="66" y1="11" x2="88" y2="11" className="rm-mid" />
-                </svg>
-                <div className="rm-nodes">
-                  {a.nodes.map((n) => (
-                    <div key={n.name} className={`rm-node r-${n.risk}`} style={{ left: `${n.x}%` }}>
-                      <span className="rm-dot" />
-                      <span className="rm-label">
-                        <b>{n.name}</b>
-                        <em>{n.code}</em>
+              {phase.kind === 'done' && phase.sample && (
+                <p className="route-note warn">{t('routeSampleNote')}</p>
+              )}
+
+              {/* 국가 구간 바 — 노선 지도가 아니라 지나는 나라를 순서대로 늘어놓은 것 */}
+              <div className="leg-bar" aria-label={t('routeMap')}>
+                {result.legs.map((leg, i) => (
+                  <div className="leg-wrap" key={leg.country}>
+                    <div className={`leg sev-${severityBand(leg.grade)}${leg.grade === 0 ? ' quiet' : ''}`}>
+                      <span className="leg-country">{leg.country}</span>
+                      {leg.cities.length > 0 && <span className="leg-city">{leg.cities.join(' · ')}</span>}
+                      <span className="leg-grade">
+                        {leg.grade > 0 ? `${leg.grade} · ${leg.count}${t('routeItems')}` : t('notApplicable')}
                       </span>
                     </div>
-                  ))}
-                </div>
+                    {i < result.legs.length - 1 && (
+                      <span className="leg-arrow" aria-hidden="true">
+                        →
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              {/* 리스크 카드 4개 */}
+              {/* 리스크 카드 4개 — 유형별 최고 이벤트 */}
               <div className="risk-cards">
-                {a.risks.map((r) => {
+                {result.byType.map((r) => {
                   const meta = TYPE_META[r.type]
-                  const rb = severityBand(r.severity)
-                  const none = r.label === null
+                  const none = r.top === null
+                  const rb = severityBand(r.top?.severity ?? 0)
                   const style = {
                     '--bar-fg': `var(--ev-${meta.key})`,
                     '--bar-bg': `var(--ev-${meta.key}-bg)`,
                   } as CSSProperties
                   return (
-                    <article
-                      key={r.type}
-                      className={`risk-card${none ? ' none' : ''}`}
-                      style={style}
-                    >
+                    <article key={r.type} className={`risk-card${none ? ' none' : ''}`} style={style}>
                       <span className="chip type">
                         {meta.icon} {meta.label[lang]}
                       </span>
-                      {none ? (
+                      {none || !r.top ? (
                         <p className="rc-none">{t('notApplicable')}</p>
                       ) : (
                         <>
-                          <p className="rc-label">{r.label}</p>
-                          <span className={`rl-sev sev-${rb}`}>{r.severity}</span>
+                          <p className="rc-label">
+                            {r.top.country} · {pickText(lang, r.top.event_name_en, r.top.event_name)}
+                          </p>
+                          <p className="rc-sub">
+                            {r.top.date_start}
+                            {r.count > 1 ? ` · +${r.count - 1}${t('routeItems')}` : ''}
+                          </p>
+                          <span className={`rl-sev sev-${rb}`}>{r.top.severity}</span>
                         </>
                       )}
                     </article>
@@ -440,39 +275,95 @@ export function RouteScreen({ lang, onToast }: Props) {
                 })}
               </div>
 
-              {/* 대안 경로 */}
+              {/* 배지에 반영된 이벤트 목록 */}
+              <h3 className="sec-title alt-title">
+                {t('routeRelevant')} <span className="detail-count">{result.relevant.length}</span>
+              </h3>
+              {result.relevant.length === 0 ? (
+                <div className="detail-empty">{t('routeNoEvents')}</div>
+              ) : (
+                <div className="detail-list">
+                  {result.relevant.map((e) => (
+                    <EventCard key={e.event_id} e={e} lang={lang} />
+                  ))}
+                </div>
+              )}
+
+              {/* §6.1 "제외된 사건은 버리지 않는다" — 등급에서만 뺐다는 것을 밝히고 남겨 둔다 */}
+              {result.excluded.length > 0 && (
+                <>
+                  <h3 className="sec-title alt-title">
+                    {t('routeExcluded')} <span className="detail-count">{result.excluded.length}</span>
+                  </h3>
+                  <p className="route-note">{t('routeExcludedNote')}</p>
+                  <div className="detail-list dimmed">
+                    {result.excluded.map((e) => (
+                      <EventCard key={e.event_id} e={e} lang={lang} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* 대안 경로 — 계산 근거가 없어 자리만 남긴다 */}
               <h3 className="sec-title alt-title">{t('altRoutes')}</h3>
-              <div className="alt-list">
-                {a.alternatives.map((alt) => {
-                  const ab = severityBand(alt.severity)
-                  return (
-                    <article className="alt-card" key={alt.id}>
-                      <div className="alt-top">
-                        <span className={`grade-badge sev-${ab}`}>
-                          {severityLabel(alt.severity, lang)} · {alt.severity}
-                        </span>
-                        {alt.switchMode && (
-                          <span className="alt-switch" aria-hidden="true">
-                            {TRANSPORT_ICON[alt.switchMode]}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="alt-name">{alt.title}</h4>
-                      <p className="alt-meta">
-                        {t('extraTime')} +{alt.extraHours}
-                        {t('hours')} · {alt.benefit}
-                      </p>
-                      <button className="btn alt-btn" onClick={() => onToast(t('altPending'))}>
-                        {t('chooseAlt')}
-                      </button>
-                    </article>
-                  )
-                })}
+              <div className="alt-card pending">
+                <span className="chip">{t('altPendingChip')}</span>
+                <p className="alt-pending-body">{t('altPendingBody')}</p>
               </div>
             </>
           )}
         </section>
       </div>
     </div>
+  )
+}
+
+/** 결과 목록의 이벤트 카드 — 캘린더의 국가별 상세와 같은 모양을 쓴다 */
+function EventCard({ e, lang }: { e: RiskEvent; lang: Lang }) {
+  const t = makeT(lang)
+  const meta = TYPE_META[e.event_type]
+  const band = severityBand(e.severity)
+  const period = e.date_start === e.date_end ? e.date_start : `${e.date_start} → ${e.date_end}`
+  const time =
+    e.time_start && e.time_end ? `${e.time_start.slice(0, 5)}–${e.time_end.slice(0, 5)}` : t('allDay')
+  const style = {
+    '--bar-fg': `var(--ev-${meta.key})`,
+    '--bar-bg': `var(--ev-${meta.key}-bg)`,
+  } as CSSProperties
+
+  return (
+    <article className="detail-card" style={style}>
+      <div className="detail-card-top">
+        <span className={`rl-sev sev-${band}`}>{e.severity}</span>
+        <span className="chip type">
+          {meta.icon} {meta.label[lang]}
+        </span>
+        <span className="dt-region">
+          {e.country}
+          {e.region ? ` · ${e.region}` : ` · ${t('nationwide')}`}
+        </span>
+        {e.verified !== 'yes' && <span className="chip status-unverified">{t('unverified')}</span>}
+      </div>
+
+      <p className="detail-name">{pickText(lang, e.event_name_en, e.event_name)}</p>
+      <p className="detail-meta">
+        {period} · {time} · {severityLabel(e.severity, lang)}
+      </p>
+      <p className="detail-summary">{pickText(lang, e.summary_en, e.summary)}</p>
+      {e.severity_reason && (
+        <p className="detail-reason">{pickText(lang, e.severity_reason_en, e.severity_reason)}</p>
+      )}
+      <div className="detail-source">
+        <span>{t('source')}:</span>
+        {e.source_url && e.source_url !== 'manual' ? (
+          <a href={e.source_url} target="_blank" rel="noreferrer">
+            {hostOf(e.source_url)}
+          </a>
+        ) : (
+          <span>{e.source_url || '—'}</span>
+        )}
+        <span>· {timeAgo(e.upd_dtm, lang)}</span>
+      </div>
+    </article>
   )
 }

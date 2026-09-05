@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Lang, RiskEvent } from '../lib/types'
 import { formatMonth, makeT } from '../lib/i18n'
 import { buildMonthWeeks, eventsOnDay, parseISODate, toISODate } from '../lib/calendar'
-import { fetchEvents, uniqueCountries, type LoadState } from '../lib/supabase'
+import { fetchEvents, type LoadState } from '../lib/supabase'
 import { isActiveRisk } from '../lib/changes'
 import { setEventStatus } from '../lib/candidates'
 import { GROUP_OF, type TypeGroup } from '../lib/eventMeta'
+import { COUNTRIES } from '../lib/locations'
 import { loadPrefs, savePrefs } from '../lib/prefs'
 import { buildCsv, downloadCsv } from '../lib/exportCsv'
 import { writeUrl } from '../lib/urlState'
@@ -18,6 +19,7 @@ import { MonthGrid } from './MonthGrid'
 import { RiskList } from './RiskList'
 import { TypeFilter } from './TypeFilter'
 import { DayDetail } from './DayDetail'
+import { CountryDetailList } from './CountryDetailList'
 
 type ViewMode = 'month' | 'map' | 'list'
 
@@ -25,9 +27,8 @@ interface Props {
   lang: Lang
   onToast: (msg: string) => void
   initial: { date?: string; country?: string; view?: ViewMode }
-  /** 로그인한 사람의 이메일. 2d 보고에 필요하다 (쓰기는 authenticated 전용) */
+  /** 로그인한 사람의 이메일. 보고는 비로그인도 되지만, 제외 처리는 로그인이 필요하다 */
   reporter: string | null
-  onSignIn: () => void
 }
 
 const ALL = '__all__'
@@ -48,7 +49,7 @@ function CalendarSkeleton() {
 }
 
 /** 2c · 리스크 캘린더 — 앱의 랜딩 화면 (DEC-010으로 2a 역할 선택을 걷어냄) */
-export function CalendarScreen({ lang, onToast, initial, reporter, onSignIn }: Props) {
+export function CalendarScreen({ lang, onToast, initial, reporter }: Props) {
   const t = makeT(lang)
   const today = new Date()
 
@@ -97,12 +98,21 @@ export function CalendarScreen({ lang, onToast, initial, reporter, onSignIn }: P
     }
   }, [rangeFrom, rangeTo, reloadTick])
 
-  const countries = useMemo(() => uniqueCountries(state.events), [state.events])
-
-  // 선택한 국가가 이번 달 목록에 없으면 필터가 조용히 깨져 화면이 빈다 → 전체로 되돌린다
-  useEffect(() => {
-    if (country !== ALL && !countries.includes(country)) setCountry(ALL)
-  }, [countries, country])
+  /**
+   * 국가 필터 목록은 **42개국 전체**를 쓴다 (locations.ts).
+   *
+   * 그전에는 '이번 달에 이벤트가 있는 나라'만 뽑아 19개국만 보였고, 담당 국가로 저장해 둔
+   * 나라가 그 달에 조용하면 필터가 스스로 '전체'로 풀려버렸다. 이제 0건인 나라도 고를 수 있고,
+   * 건수 배지로 데이터 유무를 보여준다.
+   */
+  const countryCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const e of state.events) {
+      if (e.severity <= 0) continue
+      m.set(e.country, (m.get(e.country) ?? 0) + 1)
+    }
+    return m
+  }, [state.events])
 
   const visibleEvents = useMemo(
     () => (country === ALL ? state.events : state.events.filter((e) => e.country === country)),
@@ -176,6 +186,15 @@ export function CalendarScreen({ lang, onToast, initial, reporter, onSignIn }: P
     ).length
   }, [shownEvents])
 
+  /** 제외 처리 — 날짜별 상세(DayDetail)와 국가별 상세(CountryDetailList)가 함께 쓴다 */
+  const excludeEvent = reporter
+    ? async (id: string) => {
+        const err = await setEventStatus(id, 'excluded')
+        onToast(err ?? t('excludedDone'))
+        if (!err) setReloadTick((n) => n + 1)
+      }
+    : null
+
   const shiftMonth = (delta: number) => {
     const next = new Date(year, month + delta, 1)
     setCursor(next)
@@ -239,7 +258,8 @@ export function CalendarScreen({ lang, onToast, initial, reporter, onSignIn }: P
 
         <CountryPicker
           lang={lang}
-          countries={countries}
+          countries={COUNTRIES}
+          counts={countryCounts}
           value={country === ALL ? null : country}
           onChange={(c) => setCountry(c ?? ALL)}
         />
@@ -282,14 +302,20 @@ export function CalendarScreen({ lang, onToast, initial, reporter, onSignIn }: P
 
       <div className={`cal-main${view === 'month' ? '' : ' full'}`} key={view}>
         {view === 'map' && (
-          <div className="panel">
-            <DistributionMap
-              lang={lang}
-              events={shownEvents}
-              selectedCountry={country === ALL ? null : country}
-              onPickCountry={(c) => setCountry(c ?? ALL)}
-            />
-          </div>
+          <>
+            <div className="panel">
+              <DistributionMap
+                lang={lang}
+                events={shownEvents}
+                selectedCountry={country === ALL ? null : country}
+                onPickCountry={(c) => setCountry(c ?? ALL)}
+              />
+            </div>
+            {/* 타일만으로는 '무슨 일이 왜 그 점수인지'를 알 수 없다 → 국가별 상세 카드를 아래에 편다 */}
+            <div className="panel cdl-panel">
+              <CountryDetailList lang={lang} events={shownEvents} onExclude={excludeEvent} />
+            </div>
+          </>
         )}
         {view === 'month' ? (
           <>
@@ -316,15 +342,7 @@ export function CalendarScreen({ lang, onToast, initial, reporter, onSignIn }: P
                 lang={lang}
                 date={selected}
                 events={selectedEvents}
-                onExclude={
-                  reporter
-                    ? async (id) => {
-                        const err = await setEventStatus(id, 'excluded')
-                        onToast(err ?? t('excludedDone'))
-                        if (!err) setReloadTick((n) => n + 1)
-                      }
-                    : null
-                }
+                onExclude={excludeEvent}
               />
           </>
         ) : view === 'list' ? (
@@ -344,11 +362,9 @@ export function CalendarScreen({ lang, onToast, initial, reporter, onSignIn }: P
       {reportOpen && (
         <ReportPanel
           lang={lang}
-          countries={countries}
           date={selected}
           reporter={reporter}
           onClose={() => setReportOpen(false)}
-          onSignIn={onSignIn}
           onSubmitted={onToast}
         />
       )}

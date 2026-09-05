@@ -1570,15 +1570,17 @@ textarea.fld {
 }
 
 .wp-pick-group {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr);
-  gap: 6px;
   flex: 1;
+  min-width: 0;
 }
 
 .wp-pick-group select,
 .wp-pick-group input {
   width: 100%;
+}
+
+.lp-custom {
+  margin-top: 6px;
 }
 
 .wp-del {
@@ -2479,6 +2481,10 @@ textarea.fld {
   font-weight: 750;
 }
 
+.cp-item.quiet {
+  color: var(--text-3);
+}
+
 .cp-n {
   font-size: 10.5px;
   font-weight: 750;
@@ -2578,6 +2584,74 @@ textarea.fld {
 
 .tmap {
   padding: 14px;
+}
+
+/* 좌 설명 / 우 지도. 지도가 주인공이라 폭의 대부분을 준다 */
+.tmap-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, 20%) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.tmap-guide {
+  padding: 14px 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+.tmap-guide-title {
+  margin: 0 0 12px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.tmap-guide-h {
+  margin: 0 0 7px;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--text);
+}
+
+.tmap-guide-h + .tmap-guide-h,
+.tmap-guide-list + .tmap-guide-h {
+  margin-top: 16px;
+}
+
+.tmap-guide-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.tmap-guide-list .sev-key {
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+.tmap-guide-list .sev-key-dot {
+  flex: none;
+  margin-top: 4px;
+}
+
+.tmap-guide-desc {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+@media (max-width: 900px) {
+  .tmap-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .tmap-grid {
@@ -2817,3 +2891,296 @@ textarea.fld {
 .sev-key.sev-low .sev-key-dot { background: var(--sev-low); }
 .sev-key.sev-mid .sev-key-dot { background: var(--sev-mid); }
 .sev-key.sev-high .sev-key-dot { background: var(--sev-high); }
+.sev-key.sev-none .sev-key-dot { background: var(--text-3); opacity: 0.45; }
+
+
+/* ==========================================================================
+   국가별 상세 — 분포도 아래.
+   타일은 '어디가 몇 건'까지만 답한다. 무슨 일이 왜 그 점수인지는 카드로 편다.
+   카드 자체는 DayDetail과 같은 마크업을 쓴다(두 화면에서 같은 것을 다르게 읽지 않도록).
+   ========================================================================== */
+
+.cdl-panel {
+  padding: 16px 18px 18px;
+}
+
+.cdl-title {
+  margin: 0 0 14px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.cdl-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 18px 20px;
+  align-items: start;
+}
+
+.cdl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 9px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cdl-country {
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.cdl-n {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 11px;
+  font-weight: 750;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   안내(Info) 탭 — 공개 사용 설명서 (→ 사용자 요청 2026-09-02)
+   ========================================================================== */
+
+.info-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px 22px 40px;
+  align-items: start;
+  animation: view-in var(--med) var(--ease);
+}
+
+@media (max-width: 900px) {
+  .info-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.info-section {
+  padding: 18px 20px;
+}
+
+.info-h {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  font-weight: 750;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.info-p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-2);
+  word-break: keep-all;
+}
+
+.info-ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.info-li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+  word-break: keep-all;
+}
+
+.info-li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+.info-dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.info-dl-row {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.info-dl-row dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.info-dl-row dd {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+  word-break: keep-all;
+}
+
+.info-notes .info-li::before {
+  background: var(--sev-mid);
+}
+
+@media (max-width: 640px) {
+  .info-dl-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+}
+
+/* ==========================================================================
+   2b · 경로 분석 — 실데이터 전환분 (2026-09-05)
+   국가 구간 바는 노선 지도가 아니다. 지나는 나라를 순서대로 늘어놓고
+   그 나라의 최고 위험도로 칠한 것뿐이다 (→ DEC-022 국가 단위 매칭).
+   ========================================================================== */
+
+.route-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+
+.route-note.warn {
+  padding: 8px 10px;
+  border: 1px solid var(--sev-mid-bd);
+  border-radius: 8px;
+  background: var(--sev-mid-bg);
+  color: var(--sev-mid);
+  font-weight: 650;
+}
+
+.leg-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.leg-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.leg {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: var(--r-md);
+}
+
+.leg.sev-low {
+  color: var(--sev-low);
+  background: var(--sev-low-bg);
+  border-color: var(--sev-low-bd);
+}
+.leg.sev-mid {
+  color: var(--sev-mid);
+  background: var(--sev-mid-bg);
+  border-color: var(--sev-mid-bd);
+}
+.leg.sev-high {
+  color: var(--sev-high);
+  background: var(--sev-high-bg);
+  border-color: var(--sev-high-bd);
+}
+
+/* 이벤트가 아예 없는 구간은 "안전"이 아니라 "조용함"이다 — 회색으로 둔다 */
+.leg.quiet {
+  color: var(--text-3);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.leg-country {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leg-city {
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leg-grade {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.leg-arrow {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+.rc-sub {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.detail-list.dimmed {
+  opacity: 0.62;
+}
+
+.alt-card.pending {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-style: dashed;
+  background: transparent;
+}
+
+.alt-card.pending:hover {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+
+.alt-pending-body {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+}

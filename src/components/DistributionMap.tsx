@@ -67,7 +67,43 @@ export function DistributionMap({ lang, events, selectedCountry, onPickCountry }
 
   return (
     <div className="tmap">
-      <div className="tmap-grid" style={gridStyle} role="group" aria-label={t('viewMap')}>
+      <div className="tmap-layout">
+        {/* 좌측 20% — 색과 숫자가 무슨 뜻인지. 지도만 있으면 숫자 3이 '3건'인지 '3점'인지 알 수 없다 */}
+        <aside className="tmap-guide" aria-label={t('mapGuideTitle')}>
+          <h3 className="tmap-guide-title">{t('mapGuideTitle')}</h3>
+
+          <p className="tmap-guide-h">{t('mapGuideColor')}</p>
+          <ul className="tmap-guide-list">
+            <li className="sev-key sev-low">
+              <span className="sev-key-dot" />
+              {t('mapGuideLow')}
+            </li>
+            <li className="sev-key sev-mid">
+              <span className="sev-key-dot" />
+              {t('mapGuideMid')}
+            </li>
+            <li className="sev-key sev-high">
+              <span className="sev-key-dot" />
+              {t('mapGuideHigh')}
+            </li>
+            <li className="sev-key sev-none">
+              <span className="sev-key-dot" />
+              {t('mapGuideNone')}
+            </li>
+          </ul>
+
+          <p className="tmap-guide-h">{t('mapGuideNumber')}</p>
+          <p className="tmap-guide-desc">{t('mapGuideNumberDesc')}</p>
+
+          {unmapped.length > 0 && (
+            <p className="dm-unmapped">
+              ⚠️ {t('mapUnmapped')}: {unmapped.join(', ')}
+            </p>
+          )}
+        </aside>
+
+        <div className="tmap-main">
+          <div className="tmap-grid" style={gridStyle} role="group" aria-label={t('viewMap')}>
         {COUNTRY_POINTS.map((p) => {
           const c = cells.get(p.code)
           const band = c ? severityBand(c.max) : null
@@ -111,25 +147,8 @@ export function DistributionMap({ lang, events, selectedCountry, onPickCountry }
             </button>
           )
         })}
-      </div>
-
-      <div className="tmap-foot">
-        <div className="dm-legend">
-          <span className="tf-cap">{t('severityLabel')}</span>
-          {(['low', 'mid', 'high'] as const).map((b, i) => (
-            <span className={`sev-key sev-${b}`} key={b}>
-              <span className="sev-key-dot" />
-              {severityLabel([1, 3, 5][i], lang)}
-            </span>
-          ))}
-          <span className="dm-hint">{t('mapHint')}</span>
+          </div>
         </div>
-
-        {unmapped.length > 0 && (
-          <p className="dm-unmapped">
-            ⚠️ {t('mapUnmapped')}: {unmapped.join(', ')}
-          </p>
-        )}
       </div>
     </div>
   )

@@ -16,7 +16,7 @@
  */
 
 export interface UrlState {
-  screen: 'calendar' | 'route' | 'admin'
+  screen: 'calendar' | 'route' | 'info' | 'admin'
   /** 선택 날짜 YYYY-MM-DD */
   date?: string
   /** 국가 필터. 없으면 전체 */
@@ -24,7 +24,7 @@ export interface UrlState {
   view?: 'month' | 'map' | 'list'
 }
 
-const SCREENS = ['calendar', 'route', 'admin'] as const
+const SCREENS = ['calendar', 'route', 'info', 'admin'] as const
 
 export function readUrl(): Partial<UrlState> {
   const h = window.location.hash.replace(/^#\/?/, '')

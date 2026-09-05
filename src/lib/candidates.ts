@@ -58,7 +58,8 @@ export interface ReportInput {
   from: string
   to: string
   detail: string
-  reporter: string
+  /** 로그인한 사람의 이메일. 비로그인 보고는 null이다 */
+  reporter: string | null
 }
 
 /** 성공하면 null, 실패하면 메시지 */

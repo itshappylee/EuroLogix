@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import type { Lang, RiskEvent } from '../lib/types'
 import { TYPE_META, severityBand, severityLabel } from '../lib/eventMeta'
-import { makeT, timeAgo } from '../lib/i18n'
+import { makeT, timeAgo, pickText } from '../lib/i18n'
 import {
   CATEGORY_TO_TYPE,
   decideCandidate,
@@ -281,7 +281,7 @@ export function AdminScreen({ lang, events, candidates, decided, signedIn, onSig
                   </span>
                   <span className="atbl-where">
                     <b>{e.country}</b>
-                    {e.region ? ` · ${e.region}` : ''} — {e.event_name}
+                    {e.region ? ` · ${e.region}` : ''} — {pickText(lang, e.event_name_en, e.event_name)}
                   </span>
                   <span className="atbl-when">{e.date_start}</span>
                   <span className={`rl-sev sev-${band}`} title={severityLabel(e.severity, lang)}>

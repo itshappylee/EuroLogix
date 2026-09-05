@@ -1,3 +1,7 @@
 node_modules/
 dist/
 .DS_Store
+
+# 빌드 검증용 임시 산출물·정리 대기 폴더 (2026-09-06)
+dist-*/
+_to_delete/

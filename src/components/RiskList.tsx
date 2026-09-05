@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { Lang, RiskEvent } from '../lib/types'
 import { TYPE_META, severityBand } from '../lib/eventMeta'
-import { makeT, timeAgo, transportLabel } from '../lib/i18n'
+import { makeT, timeAgo, transportLabel, pickText } from '../lib/i18n'
 import { parseISODate } from '../lib/calendar'
 
 interface Props {
@@ -88,7 +88,7 @@ export function RiskList({ events, lang }: Props) {
                   {meta.icon} {meta.label[lang]}
                 </span>
                 <span className="rl-name">
-                  {e.event_name}
+                  {pickText(lang, e.event_name_en, e.event_name)}
                   {e.verified !== 'yes' && <em className="rl-flag">{t('unverified')}</em>}
                 </span>
                 <span className="rl-mode">{transportLabel(e.transport_mode, lang)}</span>

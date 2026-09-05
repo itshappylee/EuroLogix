@@ -64,8 +64,8 @@ const NOTES: Note[] = [
       en: 'Gathered from logistics media, then shown only after an administrator approves.',
     },
     how: {
-      ko: '인원수가 아니라 부문이 1차 기준이다 — 운수·항만·철도·항공·세관은 3점, 그 밖은 1점. 전국 규모나 3일 이상이면 올리고, 예고 단계면 내린다. 사고는 아직 점수 규칙이 없다.',
-      en: 'Sector matters more than headcount — transport, ports, rail, aviation and customs start at 3, everything else at 1. Nationwide or 3+ days adds a point; merely announced subtracts one. Incidents have no scoring rule yet.',
+      ko: '인원수가 아니라 부문이 1차 기준이다 — 운수·항만·철도·항공·세관은 3점, 그 밖은 1점. 전국 규모나 3일 이상이면 올리고, 예고 단계면 내린다. 사고·도로/시설 공사는 아직 점수 규칙이 없다.',
+      en: 'Sector matters more than headcount — transport, ports, rail, aviation and customs start at 3, everything else at 1. Nationwide or 3+ days adds a point; merely announced subtracts one. Incidents — including road or facility construction — have no scoring rule yet.',
     },
   },
   {
@@ -73,8 +73,8 @@ const NOTES: Note[] = [
     icon: '🏛',
     title: { ko: '공휴일', en: 'Bank Holiday' },
     what: {
-      ko: '42개국 공식 공휴일. 위험이 아니라 참고 정보라서 날짜 오른쪽 위 배지로만 표시한다.',
-      en: 'Official holidays in 42 countries. Context rather than risk, so it appears only as a corner badge.',
+      ko: '41개국 공식 공휴일. 감시 대상은 42개국이지만 코소보는 공휴일 데이터 출처가 없어 빠져 있다. 위험이 아니라 참고 정보라서 날짜 오른쪽 위 배지로만 표시한다.',
+      en: 'Official holidays in 41 countries. We monitor 42, but Kosovo has no holiday data source. Context rather than risk, so it appears only as a corner badge.',
     },
     how: {
       ko: '공휴일 자체가 길을 막지는 않는다 — 고객 창고가 닫혀 하차가 밀릴 뿐이다. 그날 실제로 운송을 막는 것은 그 위에 걸리는 운전금지다.',

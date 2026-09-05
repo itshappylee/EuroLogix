@@ -16,6 +16,15 @@ const dict = {
     ko: '타일 = 국가(감시 대상 42개국) · 색 = 최고 위험도 · 숫자 = 건수 · 클릭하면 그 국가만 봅니다.',
     en: 'One tile per monitored country (42) · colour = max severity · number = count · click to filter.',
   },
+  mapGuideTitle: { ko: '분포도 읽는 법', en: 'How to read this map' },
+  mapGuideColor: { ko: '색 — 그 나라에서 이번 달 가장 높은 위험도', en: 'Colour — highest severity in that country this month' },
+  mapGuideLow: { ko: '초록(1~2) 낮음 · 운송 영향 적음', en: 'Green (1–2) Low · little impact on transport' },
+  mapGuideMid: { ko: '노랑(3) 보통 · 일정 조정 검토', en: 'Amber (3) Medium · consider adjusting the plan' },
+  mapGuideHigh: { ko: '빨강(4~5) 높음 · 우회나 일정 변경 필요', en: 'Red (4–5) High · reroute or reschedule' },
+  mapGuideNone: { ko: '회색 — 이번 달 등록된 이벤트 없음', en: 'Grey — no events registered this month' },
+  mapGuideNumber: { ko: '숫자 — 이벤트 건수', en: 'Number — event count' },
+  mapGuideNumberDesc: { ko: '그 나라에 걸린 이벤트 수입니다. 유형 필터를 걸면 그 기준으로 다시 셉니다.', en: 'Events in that country. Recounted whenever a type filter is applied.' },
+  byCountryTitle: { ko: '국가별 상세', en: 'Details by country' },
   mapUnmapped: { ko: '위치 미등록 국가', en: 'Countries without a position' },
   urgentBadge: { ko: '오늘~3일 내 심각', en: 'severe within 3 days' },
 
@@ -32,17 +41,19 @@ const dict = {
   navCalendar: { ko: '리스크 캘린더', en: 'Risk Calendar' },
   navRoute: { ko: '경로 분석', en: 'Route Analysis' },
   navAdmin: { ko: '관리자', en: 'Admin' },
+  navInfo: { ko: '안내', en: 'Info' },
 
-  // 2b 경로 분석 (목업)
-  mockBanner: {
-    ko: '이 화면은 목업입니다. 경로·지도·대안·예상 지연시간은 실제 데이터가 아니며, 경로 분석 기능은 아직 만들어지지 않았습니다.',
-    en: 'This screen is a mockup. Routes, map, alternatives and delay estimates are not real data — route analysis does not exist yet.',
+  // 2b 경로 분석 — 2026-09-05 실데이터 전환. 목업 문구는 남은 "준비중" 자리에만 쓴다
+  routeScopeNote: {
+    ko: '경로가 지나는 나라에서 그 기간에 일어나는 일을 모두 보여줍니다. 좌표가 없어 실제 노선 통과 여부는 판정하지 않습니다 — 놓치는 것보다 넓게 잡습니다.',
+    en: 'Shows everything happening in the countries on your route during that period. Without coordinates we cannot tell whether an event actually sits on the road — we cast wide rather than miss something.',
   },
   routeInput: { ko: '경로 정보', en: 'Route' },
   transportType: { ko: '운송 타입', en: 'Transport' },
   origin: { ko: '출발지', en: 'Origin' },
   waypoint: { ko: '경유지', en: 'Waypoint' },
   addWaypoint: { ko: '경유지 추가', en: 'Add waypoint' },
+  removeWaypoint: { ko: '경유지 삭제', en: 'Remove waypoint' },
   destination: { ko: '도착지', en: 'Destination' },
   departDate: { ko: '출발일', en: 'Departure' },
   duration: { ko: '기간', en: 'Duration' },
@@ -50,19 +61,42 @@ const dict = {
   runAnalysis: { ko: '분석 실행', en: 'Run analysis' },
   analysisResult: { ko: '분석 결과', en: 'Analysis result' },
   basedOn: { ko: '기준', en: 'basis' },
-  dataSources: { ko: '데이터 소스', en: 'sources' },
-  places: { ko: '곳', en: '' },
-  updatedAgo: { ko: '업데이트', en: 'updated' },
-  minutesAgoShort: { ko: '분 전', en: 'min ago' },
   routeMap: { ko: '경로 구간', en: 'Route segments' },
   notApplicable: { ko: '해당 없음', en: 'None' },
+  routeIdle: {
+    ko: '출발지·도착지를 고르고 분석 실행을 누르세요',
+    en: 'Pick an origin and destination, then run the analysis',
+  },
+  routeLoading: { ko: '불러오는 중…', en: 'Loading…' },
+  routeError: { ko: '데이터를 불러오지 못했습니다', en: 'Could not load data' },
+  routeNeedInput: {
+    ko: '출발지와 도착지 나라를 먼저 고르세요',
+    en: 'Pick the origin and destination country first',
+  },
+  routeSampleNote: {
+    ko: '샘플 데이터입니다 — Supabase에 연결되지 않았습니다',
+    en: 'Sample data — not connected to Supabase',
+  },
+  routeGradeNone: { ko: '해당 이벤트 없음', en: 'No matching events' },
+  routeCountsHigh: { ko: '위험', en: 'High' },
+  routeCountsMid: { ko: '주의', en: 'Medium' },
+  routeCountsLow: { ko: '정보', en: 'Low' },
+  routeItems: { ko: '건', en: '' },
+  routeRelevant: { ko: '경로에 걸리는 이벤트', en: 'Events on this route' },
+  routeNoEvents: {
+    ko: '이 기간에 이 경로 국가들에 등록된 이벤트가 없습니다',
+    en: 'No events registered for these countries in this period',
+  },
+  routeExcluded: { ko: '이 운송수단과 무관', en: 'Not relevant to this transport mode' },
+  routeExcludedNote: {
+    ko: '선택한 운송 타입과 맞지 않아 등급 계산에서는 뺐습니다. 운송수단을 바꿀 때 판단 근거가 되므로 지우지 않고 남겨 둡니다.',
+    en: 'Excluded from the grade because it does not match the selected transport mode. Kept visible because it is the reason a mode switch would or would not help.',
+  },
   altRoutes: { ko: '대안 경로', en: 'Alternative routes' },
-  extraTime: { ko: '예상 추가', en: 'Extra' },
-  hours: { ko: '시간', en: 'h' },
-  chooseAlt: { ko: '이 경로로 변경 결정', en: 'Choose this route' },
-  altPending: {
-    ko: '경로 변경 결정은 목업입니다 — 저장되지 않습니다',
-    en: 'Route decision is a mockup — nothing is saved',
+  altPendingChip: { ko: '준비중', en: 'Not built yet' },
+  altPendingBody: {
+    ko: '대안 경로와 예상 지연시간은 아직 계산할 수 없습니다 — 노선·좌표 데이터가 없습니다. 근거 없는 숫자를 보여주지 않기 위해 비워 둡니다.',
+    en: 'Alternative routes and delay estimates cannot be computed yet — there is no route or coordinate data. Left empty rather than showing invented numbers.',
   },
 
   // 2d 위험 보고
@@ -76,6 +110,8 @@ const dict = {
   modeAll: { ko: '전체', en: 'All' },
   fieldCountry: { ko: '나라', en: 'Country' },
   fieldCity: { ko: '도시', en: 'City' },
+  otherCity: { ko: '직접 입력', en: 'Other city' },
+  otherCityPlaceholder: { ko: '도시명을 입력하세요', en: 'Enter city' },
   fieldDate: { ko: '발생 일자', en: 'Date' },
   fieldTimeRange: { ko: '시간 범위', en: 'Time range' },
   fieldDetail: { ko: '상세 내용', en: 'Details' },
@@ -276,4 +312,13 @@ export function timeAgo(iso: string, lang: Lang): string {
   if (hr < 24) return `${hr}${sp}${t('hoursAgo')}`
   const day = Math.floor(hr / 24)
   return `${day}${sp}${t('daysAgo')}`
+}
+
+/**
+ * events의 한/영 병렬 컬럼(_en) 중 언어에 맞는 쪽을 고른다.
+ * EN 모드인데 _en이 비어 있으면(아직 n8n이 생성 못한 값) 한국어로 폴백한다.
+ * → 2026-09-02 이중언어 작업. 근거: [[/topics/... ]] 없음 — 세션 내 결정.
+ */
+export function pickText(lang: Lang, en: string | null | undefined, ko: string): string {
+  return lang === 'en' && en && en.trim() ? en : ko
 }
