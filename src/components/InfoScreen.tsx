@@ -52,6 +52,10 @@ const SCORING_ITEMS: Record<Lang, string>[] = [
     en: 'Strike — scored by sector: transport, ports, rail, aviation and customs start at 3, everything else at 1. Nationwide or 3+ days adds +1; merely announced subtracts 1.',
   },
   {
+    ko: '사고·공사 — 통행이 끊기면 3점, 지연이나 차로 일부 통제뿐이면 1점. 전국 규모면 +1, 3일 이상 이어지면 +1.',
+    en: 'Incident & roadworks — 3 points when through traffic is blocked, 1 for delays or partial lane closures. Nationwide adds +1; lasting 3+ days adds +1.',
+  },
+  {
     ko: '공휴일 — 기본 1점 (길을 막는 건 공휴일이 아니라 그 위에 걸리는 운전금지입니다).',
     en: 'Bank Holiday — base 1 point (a holiday itself does not block the road — the driving ban that sometimes rides on top of it does).',
   },
@@ -93,8 +97,8 @@ const TABS_ITEMS: { name: Record<Lang, string>; desc: Record<Lang, string> }[] =
 const REPORT: Block = {
   title: { ko: '위험 보고 기능', en: 'Report a risk' },
   body: {
-    ko: '화면 우측 하단 "위험 보고" 버튼으로 누구나 보고할 수 있습니다. 보고한 내용은 바로 캘린더에 뜨지 않고 관리자 검수를 거칩니다. 승인된 것만 캘린더에 올라갑니다. (다음 배포에 업데이트 됨)',
-    en: 'Anyone can submit a report with the "Report risk" button at the bottom right. A submitted report does not appear on the calendar right away — it goes through admin review first. Only approved reports are added to the calendar. (Ships in the next deployment)',
+    ko: '화면 우측 하단 "위험 보고" 버튼으로 누구나 보고할 수 있습니다. 보고한 내용은 바로 캘린더에 뜨지 않고 관리자 검수를 거칩니다. 승인된 것만 캘린더에 올라갑니다.',
+    en: 'Anyone can submit a report with the "Report risk" button at the bottom right. A submitted report does not appear on the calendar right away — it goes through admin review first. Only approved reports are added to the calendar.',
   },
 }
 
@@ -113,8 +117,8 @@ const NOTES_ITEMS: Record<Lang, string>[] = [
     en: 'Only items that passed review are shown. No entry does not mean no risk.',
   },
   {
-    ko: '파업·사고는 언론 보도 기반이라 수집 범위에 한계가 있습니다.',
-    en: 'Strikes and incidents are sourced from media coverage, so collection has gaps.',
+    ko: '파업·사고·공사는 언론 보도 기반이라 수집 범위에 한계가 있습니다.',
+    en: 'Strikes, incidents and roadworks are sourced from media coverage, so collection has gaps.',
   },
   {
     ko: '운전금지 중 그리스·불가리아·루마니아는 상시 현지 경찰에 의한 정보 변동으로 자동 수집되지 않습니다.',

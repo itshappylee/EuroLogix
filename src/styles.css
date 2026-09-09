@@ -162,6 +162,7 @@ button {
 .tf-n,
 .rl-sev,
 .rl-period,
+.rl-time,
 .rl-updated,
 .rl-count,
 .detail-count,
@@ -1015,9 +1016,12 @@ button {
 .rl-colhead,
 .rl-row {
   display: grid;
-  grid-template-columns: 38px 136px 104px minmax(0, 1fr) 120px 172px 68px;
+  /* 이벤트 열에 상한을 둬서 운송수단·기간·시간을 왼쪽으로 당긴다.
+     남는 공간은 갱신 앞의 빈 칸(.rl-gap)이 먹는다 — 줄마다 grid가 따로라
+     열 너비를 고정해야 줄끼리 세로로 맞는다 (→ 2026-09-09) */
+  grid-template-columns: 38px 126px 108px minmax(0, 296px) 92px 156px 146px minmax(0, 1fr) 66px;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .rl-colhead {
@@ -1168,6 +1172,7 @@ button {
 
 .rl-mode,
 .rl-period,
+.rl-time,
 .rl-updated {
   font-size: 11.5px;
   font-weight: 600;
@@ -1175,11 +1180,27 @@ button {
   white-space: nowrap;
 }
 
+/* 운행금지의 금지 시간대 — 여기만 숫자가 판단에 직접 쓰인다 */
+.rl-time.quiet {
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.rl-dur {
+  margin-left: 4px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 650;
+  color: var(--text-3);
+}
+
 .rl-updated {
   color: var(--text-3);
   text-align: right;
 }
 
+/* 좁은 화면 — 열 머리글을 접고 한 건을 4줄 카드처럼 쌓는다.
+   자동 배치에 맡기면 기간과 시간이 같은 칸에서 겹치므로 자리를 직접 지정한다. */
 @media (max-width: 940px) {
   .rl-colhead {
     display: none;
@@ -1189,11 +1210,39 @@ button {
     gap: 4px 12px;
   }
   .rl-sev {
-    grid-row: span 2;
+    grid-row: span 4;
+  }
+  .rl-country {
+    grid-column: 2;
+  }
+  .rl-type {
+    grid-column: 3;
+    justify-self: end;
+  }
+  .rl-name {
+    grid-column: 2 / span 2;
+  }
+  .rl-mode {
+    grid-column: 2;
+  }
+  .rl-period {
+    grid-column: 3;
+    justify-self: end;
+  }
+  .rl-time {
+    grid-column: 2;
+  }
+  .rl-updated {
+    grid-column: 3;
+    justify-self: end;
   }
   .rl-mode,
+  .rl-time,
   .rl-updated {
     font-size: 10.5px;
+  }
+  .rl-gap {
+    display: none;
   }
 }
 
@@ -3182,5 +3231,135 @@ textarea.fld {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.6;
+  color: var(--text-3);
+}
+
+/* ==========================================================================
+   PickList — 기본 select 대신 쓰는 목록 선택 (→ components/PickList.tsx)
+   국가 42개·시간 48개에서 기본 드롭다운이 화면을 다 덮어서 직접 그린다 (2026-09-09)
+   ========================================================================== */
+
+.pl {
+  position: relative;
+}
+
+.pl-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-3);
+}
+
+.pl-trigger.has {
+  color: var(--text);
+}
+
+.pl-trigger:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.pl-trigger:disabled {
+  cursor: not-allowed;
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+.pl-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.pl-val {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pl-caret {
+  flex: none;
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+/* 위험 보고 모달의 .sheet-body가 overflow-y:auto라 안에 두면 잘린다 → fixed */
+.pl-pop {
+  position: fixed;
+  z-index: 90;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-3);
+  animation: pop-in var(--med) var(--ease);
+}
+
+.pl-pop.up {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.pl-search {
+  margin-bottom: 6px;
+}
+
+.pl-list {
+  /* max-height는 남은 화면 공간에 맞춰 PickList가 인라인으로 넣는다 */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  scrollbar-width: thin;
+}
+
+.pl-list.grid {
+  display: grid;
+  gap: 2px;
+}
+
+.pl-item {
+  display: block;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+
+.pl-list.grid .pl-item {
+  padding: 6px 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pl-item.active {
+  background: var(--surface-2);
+}
+
+.pl-item.on {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  font-weight: 750;
+}
+
+.pl-item.empty {
+  color: var(--text-3);
+}
+
+.pl-empty {
+  margin: 0;
+  padding: 20px 0;
+  text-align: center;
+  font-size: 12px;
   color: var(--text-3);
 }

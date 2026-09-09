@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import type { Lang } from '../lib/types'
 import { makeT } from '../lib/i18n'
 import { COUNTRIES, OTHER_CITY, cityOptions } from '../lib/locations'
+import { PickList } from './PickList'
 
 /** 나라 + 도시(+ 직접 입력) 한 벌. 세 화면이 같은 모양을 쓰도록 값도 한 덩어리로 다닌다 */
 export interface LocationValue {
@@ -27,6 +29,9 @@ interface Props {
  *
  * 나라를 바꾸면 도시는 그 나라의 첫 대표 도시로 옮겨간다 — 이전 나라의 도시가 남아
  * "Germany · Lyon" 같은 조합이 저장되는 것을 막는다.
+ *
+ * 2026-09-09부터 기본 `<select>` 대신 [[PickList]]를 쓴다. 국가가 42개라 기본 드롭다운이
+ * 화면 위아래를 다 덮을 만큼 길어졌고, 그 높이는 CSS로 줄일 수 없다.
  */
 export function LocationPicker({ lang, value, onChange, idPrefix, compact = false }: Props) {
   const t = makeT(lang)
@@ -41,6 +46,12 @@ export function LocationPicker({ lang, value, onChange, idPrefix, compact = fals
     onChange({ ...value, city, customCity: city === OTHER_CITY ? value.customCity : '' })
   }
 
+  const countryOptions = useMemo(() => COUNTRIES.map((c) => ({ value: c, label: c })), [])
+  const cityPickOptions = useMemo(
+    () => cities.map((c) => ({ value: c, label: c === OTHER_CITY ? t('otherCity') : c })),
+    [cities, t],
+  )
+
   return (
     <>
       <div className="fld-2col">
@@ -50,20 +61,15 @@ export function LocationPicker({ lang, value, onChange, idPrefix, compact = fals
               {t('fieldCountry')}
             </label>
           )}
-          <select
+          <PickList
+            lang={lang}
             id={`${idPrefix}-country`}
-            className="fld"
-            aria-label={compact ? t('fieldCountry') : undefined}
+            ariaLabel={t('fieldCountry')}
             value={value.country}
-            onChange={(e) => pickCountry(e.target.value)}
-          >
-            <option value="">{t('selectPlaceholder')}</option>
-            {COUNTRIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            options={countryOptions}
+            placeholder={t('selectPlaceholder')}
+            onChange={pickCountry}
+          />
         </div>
 
         <div>
@@ -72,21 +78,16 @@ export function LocationPicker({ lang, value, onChange, idPrefix, compact = fals
               {t('fieldCity')}
             </label>
           )}
-          <select
+          <PickList
+            lang={lang}
             id={`${idPrefix}-city`}
-            className="fld"
-            aria-label={compact ? t('fieldCity') : undefined}
+            ariaLabel={t('fieldCity')}
             value={value.city}
-            onChange={(e) => pickCity(e.target.value)}
+            options={cityPickOptions}
+            placeholder={value.country ? t('selectPlaceholder') : '\u2014'}
             disabled={!value.country}
-          >
-            <option value="">{value.country ? t('selectPlaceholder') : '—'}</option>
-            {cities.map((city) => (
-              <option key={city} value={city}>
-                {city === OTHER_CITY ? t('otherCity') : city}
-              </option>
-            ))}
-          </select>
+            onChange={pickCity}
+          />
         </div>
       </div>
 

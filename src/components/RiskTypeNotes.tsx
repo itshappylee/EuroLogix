@@ -60,12 +60,12 @@ const NOTES: Note[] = [
     icon: '🚫',
     title: { ko: '파업 · 사고', en: 'Strike & Incident' },
     what: {
-      ko: '물류 매체 보도에서 모은 뒤, 관리자가 승인해야 캘린더에 오른다.',
-      en: 'Gathered from logistics media, then shown only after an administrator approves.',
+      ko: '물류 매체 보도에서 파업·사고·도로 공사를 모은 뒤, 관리자가 승인해야 캘린더에 오른다.',
+      en: 'Strikes, incidents and roadworks gathered from logistics media, then shown only after an administrator approves.',
     },
     how: {
-      ko: '인원수가 아니라 부문이 1차 기준이다 — 운수·항만·철도·항공·세관은 3점, 그 밖은 1점. 전국 규모나 3일 이상이면 올리고, 예고 단계면 내린다. 사고·도로/시설 공사는 아직 점수 규칙이 없다.',
-      en: 'Sector matters more than headcount — transport, ports, rail, aviation and customs start at 3, everything else at 1. Nationwide or 3+ days adds a point; merely announced subtracts one. Incidents — including road or facility construction — have no scoring rule yet.',
+      ko: '인원수가 아니라 부문이 1차 기준이다 — 운수·항만·철도·항공·세관은 3점, 그 밖은 1점. 전국 규모나 3일 이상이면 올리고, 예고 단계면 내린다. 사고·공사는 통행이 끊기면 3점, 지연이나 차로 일부 통제뿐이면 1점에서 시작한다.',
+      en: 'Sector matters more than headcount — transport, ports, rail, aviation and customs start at 3, everything else at 1. Nationwide or 3+ days adds a point; merely announced subtracts one. Incidents and roadworks start at 3 when through traffic is blocked, or 1 for delays and partial lane closures.',
     },
   },
   {

@@ -37,6 +37,8 @@ const dict = {
   colPeriod: { ko: '기간', en: 'Period' },
   colEvent: { ko: '이벤트', en: 'Event' },
   colUpdated: { ko: '갱신', en: 'Updated' },
+  colTime: { ko: '시간', en: 'Time' },
+  pickSearch: { ko: '검색', en: 'Search' },
   // 상단 내비게이션
   navCalendar: { ko: '리스크 캘린더', en: 'Risk Calendar' },
   navRoute: { ko: '경로 분석', en: 'Route Analysis' },
@@ -321,4 +323,84 @@ export function timeAgo(iso: string, lang: Lang): string {
  */
 export function pickText(lang: Lang, en: string | null | undefined, ko: string): string {
   return lang === 'en' && en && en.trim() ? en : ko
+}
+
+/**
+ * 시간대 열 — `00:00 ~ 22:00 (22시간)`.
+ *
+ * 운행금지(Driving Ban)는 **몇 시부터 몇 시까지인지가 판단 자체**다.
+ * business-rules §4가 금지 시간대의 길이로 점수를 매기는데, 임박순 목록에는
+ * 날짜만 있고 시간이 없어서 "오전에 통과하면 되는지"를 화면에서 알 수 없었다.
+ * (→ 2026-09-09 사용자 요청)
+ *
+ * - `time_start`/`time_end`가 없으면 종일로 본다 — DayDetail·CountryDetailList·2b와 같은 규칙이다.
+ * - Postgres `time`은 `24:00:00`을 허용한다. 실제로 헝가리·오스트리아 등 27건이 이 값이다.
+ * - 끝이 시작보다 이르면 자정을 넘긴 것으로 보고 하루를 더한다.
+ * - 여러 날짜에 걸치면 날짜 차이만큼 더해 총 시간을 낸다.
+ */
+function toMinutes(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm.trim())
+  if (!m) return null
+  const h = Number(m[1])
+  const mi = Number(m[2])
+  if (!Number.isFinite(h) || !Number.isFinite(mi)) return null
+  return h * 60 + mi
+}
+
+export interface TimeRange {
+  /** `08:00 ~ 22:00`, 또는 종일이면 '종일' */
+  span: string
+  /** `14시간` / `1시간 30분` — 계산할 수 없으면 null */
+  duration: string | null
+  /** 종일(시간 없음) 또는 00:00~24:00 */
+  allDay: boolean
+}
+
+export function timeRange(
+  event: {
+    date_start: string
+    date_end: string
+    time_start: string | null
+    time_end: string | null
+  },
+  lang: Lang,
+): TimeRange {
+  const t = makeT(lang)
+  if (!event.time_start || !event.time_end)
+    return { span: t('allDay'), duration: null, allDay: true }
+
+  const from = toMinutes(event.time_start)
+  const to = toMinutes(event.time_end)
+  if (from === null || to === null) return { span: t('allDay'), duration: null, allDay: true }
+
+  const dayDiff = Math.max(
+    0,
+    Math.round(
+      (Date.parse(`${event.date_end}T00:00:00Z`) - Date.parse(`${event.date_start}T00:00:00Z`)) /
+        86400000,
+    ) || 0,
+  )
+  let total = to + dayDiff * 1440 - from
+  // 같은 날인데 끝이 시작보다 이르면 자정을 넘긴 것이다
+  if (total <= 0) total += 1440
+
+  const span = `${event.time_start.slice(0, 5)} ~ ${event.time_end.slice(0, 5)}`
+  const allDay = dayDiff === 0 && from === 0 && (to === 1440 || to === 0)
+
+  const h = Math.floor(total / 60)
+  const mi = total % 60
+  const duration =
+    lang === 'ko'
+      ? mi === 0
+        ? `${h}시간`
+        : h === 0
+          ? `${mi}분`
+          : `${h}시간 ${mi}분`
+      : mi === 0
+        ? `${h}h`
+        : h === 0
+          ? `${mi}m`
+          : `${h}h ${mi}m`
+
+  return { span: allDay ? t('allDay') : span, duration: allDay ? null : duration, allDay }
 }

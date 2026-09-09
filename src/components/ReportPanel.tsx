@@ -6,6 +6,7 @@ import { makeT } from '../lib/i18n'
 import { toISODate } from '../lib/calendar'
 import { resolveCity } from '../lib/locations'
 import { LocationPicker, emptyLocation, type LocationValue } from './LocationPicker'
+import { PickList } from './PickList'
 
 interface Props {
   lang: Lang
@@ -25,6 +26,8 @@ const TIMES = Array.from({ length: 48 }, (_, i) => {
   const m = i % 2 === 0 ? '00' : '30'
   return `${h}:${m}`
 })
+
+const TIME_OPTIONS = TIMES.map((x) => ({ value: x, label: x }))
 
 /**
  * 2d · 위험 보고 — 캘린더 위 플로팅 패널.
@@ -197,29 +200,27 @@ export function ReportPanel({ lang, date, reporter, onClose, onSubmitted }: Prop
             <div>
               <label className="fld-label">{t('fieldTimeRange')}</label>
               <div className="time-range">
-                <select
-                  className="fld"
-                  aria-label={`${t('fieldTimeRange')} from`}
+                <PickList
+                  lang={lang}
+                  ariaLabel={`${t('fieldTimeRange')} from`}
                   value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                >
-                  <option value="">--:--</option>
-                  {TIMES.map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
+                  options={TIME_OPTIONS}
+                  placeholder="--:--"
+                  columns={3}
+                  allowEmpty
+                  onChange={setFrom}
+                />
                 <span>–</span>
-                <select
-                  className="fld"
-                  aria-label={`${t('fieldTimeRange')} to`}
+                <PickList
+                  lang={lang}
+                  ariaLabel={`${t('fieldTimeRange')} to`}
                   value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                >
-                  <option value="">--:--</option>
-                  {TIMES.map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
+                  options={TIME_OPTIONS}
+                  placeholder="--:--"
+                  columns={3}
+                  allowEmpty
+                  onChange={setTo}
+                />
               </div>
             </div>
           </div>
