@@ -358,6 +358,7 @@ export interface TimeRange {
 
 export function timeRange(
   event: {
+    event_type?: string
     date_start: string
     date_end: string
     time_start: string | null
@@ -387,6 +388,15 @@ export function timeRange(
   const span = `${event.time_start.slice(0, 5)} ~ ${event.time_end.slice(0, 5)}`
   const allDay = dayDiff === 0 && from === 0 && (to === 1440 || to === 0)
 
+  /**
+   * 여러 날에 걸친 **운행금지**는 총 시간을 내지 않는다.
+   * 기상경보는 한 번 시작해 끝까지 이어지므로 이틀치 합산이 맞지만(예: 스위스 뇌우
+   * 09-08 18:50 → 09-09 20:45 = 25시간 55분), 운행금지는 같은 시간대가 **날마다 반복**된다.
+   * 07:00~20:00이 사흘이면 실제 금지는 39시간인데 합산하면 61시간이 나온다 —
+   * 어느 쪽인지 데이터로 구분할 수 없으니 아예 말하지 않는다. 날짜 범위는 기간 열에 이미 있다.
+   */
+  const perDay = event.event_type === 'Driving Ban' && dayDiff > 0
+
   const h = Math.floor(total / 60)
   const mi = total % 60
   const duration =
@@ -402,5 +412,5 @@ export function timeRange(
           ? `${mi}m`
           : `${h}h ${mi}m`
 
-  return { span: allDay ? t('allDay') : span, duration: allDay ? null : duration, allDay }
+  return { span: allDay ? t('allDay') : span, duration: allDay || perDay ? null : duration, allDay }
 }
